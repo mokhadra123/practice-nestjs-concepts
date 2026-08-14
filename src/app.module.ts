@@ -1,13 +1,14 @@
-import { Module } from '@nestjs/common';
-import { ProductsModule } from './products/products.module';
-import { ReviewsModule } from './reviews/reviews.module';
-import { UsersModule } from './users/users.module';
+import { ClassSerializerInterceptor, Module } from '@nestjs/common';
+import { ProductsModule } from './modules/products/products.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
+import { UsersModule } from './modules/users/users.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Product } from './products/product.entity';
+import { Product } from './modules/products/entities/product.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Review } from './reviews/entities/review.entity';
-import { User } from './users/entities/user.entity';
-import { AuthModule } from './auth/auth.module';
+import { Review } from './modules/reviews/entities/review.entity';
+import { User } from './modules/users/entities/user.entity';
+import { AuthModule } from './modules/auth/auth.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -34,6 +35,12 @@ import { AuthModule } from './auth/auth.module';
       envFilePath: `.env.${process.env.NODE_ENV}`,
     }),
     AuthModule,
+  ],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ClassSerializerInterceptor,
+    },
   ],
 })
 export class AppModule {}
