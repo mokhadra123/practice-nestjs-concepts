@@ -1,19 +1,14 @@
 import { BadRequestException, Module } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { UsersController } from './users.controller';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
+import { UploadsController } from './uploads.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 
 @Module({
-  controllers: [UsersController],
-  providers: [UsersService],
+  controllers: [UploadsController],
   imports: [
-    TypeOrmModule.forFeature([User]),
     MulterModule.register({
       storage: diskStorage({
-        destination: './images/users',
+        destination: './images',
         filename: (req, file, cb) => {
           const prefix = `${Date.now()}-${Math.round(Math.random() * 1000000)}`;
           const filename = `${prefix}-${file.originalname}`;
@@ -30,6 +25,5 @@ import { diskStorage } from 'multer';
       limits: { fileSize: 1024 * 1024 * 2 },
     }),
   ],
-  exports: [UsersService],
 })
-export class UsersModule {}
+export class UploadsModule {}

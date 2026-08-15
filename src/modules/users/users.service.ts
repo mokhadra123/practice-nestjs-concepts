@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -12,6 +13,8 @@ import * as bcrypt from 'bcrypt';
 import { SALT_ROUNDS } from 'src/common/constants';
 import { JwtPayload } from 'src/common/types/jwt-payload';
 import { UserType } from 'src/common/types/enums';
+import { join } from 'node:path';
+import { unlinkSync } from 'node:fs';
 
 @Injectable()
 export class UsersService {
@@ -67,5 +70,34 @@ export class UsersService {
     throw new ForbiddenException(
       'Access denied You are not allowed to delete This user',
     );
+  }
+
+  async setProfileImage(userId: number, profileImage: string) {
+    const user = await this.findOne(userId);
+
+    if (!user.profileImage) {
+      user.profileImage = profileImage;
+    } else {
+      await this.removeProfileImage(user.id);
+      user.profileImage = profileImage;
+    }
+
+    return this.userRepository.save(user);
+  }
+
+  async removeProfileImage(userId: number) {
+    const user = await this.findOne(userId);
+
+    if (!user.profileImage)
+      throw new BadRequestException('there is no profile image');
+
+    const imagePath = join(
+      process.cwd(),
+      `./images/users/${user.profileImage}`,
+    );
+    unlinkSync(imagePath);
+
+    user.profileImage = null;
+    return this.userRepository.save(user);
   }
 }
