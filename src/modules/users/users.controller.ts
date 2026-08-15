@@ -3,7 +3,6 @@ import {
   Get,
   Param,
   Delete,
-  UseGuards,
   Put,
   Body,
   ParseIntPipe,
@@ -13,10 +12,8 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { AuthGuard } from 'src/modules/auth/guards/auth.guard';
-import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { CurrentUser, Roles } from 'src/common/decorators';
 import type { JwtPayload } from 'src/common/types/jwt-payload';
-import { Roles } from './decorators/user-role.decorator';
 import { UserType } from 'src/common/types/enums';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -33,7 +30,6 @@ export class UsersController {
 
   // Must stay above `@Get(':id')` — a dynamic segment would swallow `/users/me`.
   @Get('me')
-  @UseGuards(AuthGuard)
   getCurrentUser(@CurrentUser() payload: JwtPayload) {
     return this.usersService.findOne(payload.id);
   }
@@ -45,7 +41,6 @@ export class UsersController {
   }
 
   @Post('upload-image')
-  @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('user-image'))
   uploadProfileImage(
     @UploadedFile() file: Express.Multer.File,

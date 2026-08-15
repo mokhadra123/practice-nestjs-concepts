@@ -11,7 +11,7 @@ import {
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
-import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { CurrentUser } from 'src/common/decorators';
 import type { JwtPayload } from 'src/common/types/jwt-payload';
 import { QueryReviewDto } from './dto/query-review.dto';
 

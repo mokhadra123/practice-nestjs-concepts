@@ -13,9 +13,9 @@ import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
-import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { CurrentUser } from 'src/common/decorators';
 import type { JwtPayload } from 'src/common/types/jwt-payload';
-import { Roles } from '../users/decorators/user-role.decorator';
+import { Roles } from '../../common/decorators/user-role.decorator';
 import { UserType } from 'src/common/types/enums';
 
 @Controller('products')
@@ -42,11 +42,13 @@ export class ProductsController {
   }
 
   @Put(':id')
+  @Roles(UserType.ADMIN)
   update(@Param('id') id: number, @Body() dto: UpdateProductDto) {
     return this.productsService.update(id, dto);
   }
 
   @Delete(':id')
+  @Roles(UserType.ADMIN)
   remove(@Param('id') id: number) {
     return this.productsService.remove(id);
   }
