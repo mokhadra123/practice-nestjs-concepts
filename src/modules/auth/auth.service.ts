@@ -1,7 +1,7 @@
 import {
   BadRequestException,
   Injectable,
-  NotFoundException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -14,9 +14,16 @@ import { SALT_ROUNDS } from 'src/common/constants';
 import { MailService } from '../mail/mail.service';
 // import { randomBytes } from 'crypto';
 import { ConfigService } from '@nestjs/config';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  private readonly _dummyHash = bcrypt.hashSync(
+    randomBytes(32).toString('hex'),
+    SALT_ROUNDS,
+  );
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -37,11 +44,12 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const user = await this.usersService.findByEmail(dto.email);
-    if (!user) throw new NotFoundException('User Not Found');
 
-    const isPasswordMatch = await bcrypt.compare(dto.password, user.password);
-    if (!isPasswordMatch)
-      throw new UnauthorizedException('Email or password is wrong');
+    const passwordHashed = user?.password ?? this._dummyHash;
+    const isPasswordMatch = await bcrypt.compare(dto.password, passwordHashed);
+
+    if (!user || isPasswordMatch)
+      throw new UnauthorizedException('Invalid email or password.');
 
     const payload: JwtPayload = {
       id: user.id,
@@ -50,7 +58,9 @@ export class AuthService {
     };
     const accessToken = await this.jwtService.signAsync(payload);
 
-    await this.mailService.sendMail(user);
+    void this.mailService
+      .sendMail(user)
+      .catch((err) => this.logger.error('Login alert email failed', err));
 
     return { access_token: accessToken };
   }

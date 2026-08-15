@@ -14,6 +14,8 @@ import { authConfig } from './modules/auth/config/auth.config';
 import { typeOrmConfig } from './common/config/typeorm.config';
 import { configModuleConfig } from './common/config/config-module.config';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { throttlerConfig } from './common/config/throttler.config';
 
 @Module({
   imports: [
@@ -26,9 +28,11 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     TypeOrmModule.forRootAsync(typeOrmConfig),
     JwtModule.registerAsync(authConfig),
     ConfigModule.forRoot(configModuleConfig),
+    ThrottlerModule.forRoot(throttlerConfig),
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: ClassSerializerInterceptor },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
