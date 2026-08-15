@@ -4,3 +4,4 @@ export const SALT_ROUNDS = 10;
 export const ROLES_KEY = 'roles';
 export const DEFAULT_PAGE_NUMBER = 1;
 export const DEFAULT_LIMIT_NUMBER = 20;
+export const IS_PUBLIC_KEY = 'isPublic';

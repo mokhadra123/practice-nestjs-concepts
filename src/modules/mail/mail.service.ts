@@ -12,7 +12,22 @@ export class MailService {
       await this.mailerService.sendMail({
         to: user.email,
         template: 'login-alert',
+        subject: 'login email',
         context: { user, today },
+      });
+    } catch (error) {
+      console.log(error);
+      throw new RequestTimeoutException();
+    }
+  }
+
+  async sendVerifyEmail(user: User, link: string) {
+    try {
+      await this.mailerService.sendMail({
+        to: user.email,
+        template: 'verify-email',
+        subject: 'Token Email verification',
+        context: { link },
       });
     } catch (error) {
       console.log(error);

@@ -3,14 +3,17 @@ import { ProductsModule } from './modules/products/products.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { UsersModule } from './modules/users/users.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Product } from './modules/products/entities/product.entity';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Review } from './modules/reviews/entities/review.entity';
-import { User } from './modules/users/entities/user.entity';
+import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { MailModule } from './modules/mail/mail.module';
+import { AuthGuard } from './modules/auth/guards/auth.guard';
+import { JwtModule } from '@nestjs/jwt';
+import { authConfig } from './modules/auth/config/auth.config';
+import { typeOrmConfig } from './common/config/typeorm.config';
+import { configModuleConfig } from './common/config/config-module.config';
+import { RolesGuard } from './modules/auth/guards/roles.guard';
 
 @Module({
   imports: [
@@ -19,32 +22,15 @@ import { MailModule } from './modules/mail/mail.module';
     UsersModule,
     UploadsModule,
     MailModule,
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        return {
-          type: 'postgres',
-          database: config.get<string>('DB_NAME'),
-          username: config.get<string>('DB_USERNAME'),
-          password: config.get<string>('DB_PASSWORD'),
-          port: config.get<number>('DB_PORT'),
-          host: config.get<string>('DB_HOST'),
-          synchronize: process.env.NODE_ENV !== 'production',
-          entities: [Product, Review, User],
-        };
-      },
-    }),
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: `.env.${process.env.NODE_ENV}`,
-    }),
     AuthModule,
+    TypeOrmModule.forRootAsync(typeOrmConfig),
+    JwtModule.registerAsync(authConfig),
+    ConfigModule.forRoot(configModuleConfig),
   ],
   providers: [
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: ClassSerializerInterceptor,
-    },
+    { provide: APP_INTERCEPTOR, useClass: ClassSerializerInterceptor },
+    { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}

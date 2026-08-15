@@ -18,7 +18,6 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { JwtPayload } from 'src/common/types/jwt-payload';
 import { Roles } from './decorators/user-role.decorator';
 import { UserType } from 'src/common/types/enums';
-import { AuthRolesGuard } from 'src/modules/auth/guards/auth-roles.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 
@@ -28,7 +27,6 @@ export class UsersController {
 
   @Get()
   @Roles(UserType.ADMIN)
-  @UseGuards(AuthRolesGuard)
   findAll() {
     return this.usersService.findAll();
   }
@@ -41,8 +39,7 @@ export class UsersController {
   }
 
   @Put('update')
-  @Roles(UserType.ADMIN, UserType.NORMAL_USER)
-  @UseGuards(AuthRolesGuard)
+  @Roles(UserType.ADMIN)
   update(@CurrentUser() payload: JwtPayload, @Body() body: UpdateUserDto) {
     return this.usersService.update(payload.id, body);
   }
@@ -60,21 +57,17 @@ export class UsersController {
   }
 
   @Delete('remove-profile-image')
-  @UseGuards(AuthGuard)
   removeProfileImage(@CurrentUser() payload: JwtPayload) {
     return this.usersService.removeProfileImage(payload.id);
   }
 
   @Get(':id')
   @Roles(UserType.ADMIN)
-  @UseGuards(AuthRolesGuard)
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(+id);
   }
 
   @Delete(':id')
-  @Roles(UserType.ADMIN, UserType.NORMAL_USER)
-  @UseGuards(AuthRolesGuard)
   remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() payload: JwtPayload,
