@@ -11,12 +11,14 @@ import { JwtPayload } from 'src/common/types/jwt-payload';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { SALT_ROUNDS } from 'src/common/constants';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -44,6 +46,8 @@ export class AuthService {
       userType: user.userType,
     };
     const accessToken = await this.jwtService.signAsync(payload);
+
+    await this.mailService.sendMail(user);
 
     return { access_token: accessToken };
   }

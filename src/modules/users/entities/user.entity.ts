@@ -33,6 +33,9 @@ export class User {
   @Column({ default: false })
   isAccountVerified!: boolean;
 
+  @Column({ type: 'varchar', nullable: true })
+  verificationToken!: string | null;
+
   @CreateDateColumn({ type: 'timestamp', default: () => CURRENT_TIMESTAMP })
   createdAt!: Date;
 
