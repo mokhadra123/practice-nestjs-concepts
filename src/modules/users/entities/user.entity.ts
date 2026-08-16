@@ -33,8 +33,14 @@ export class User {
   @Column({ default: false })
   isAccountVerified!: boolean;
 
+  /** SHA-256 of the token that was emailed — never the raw token itself. */
   @Column({ type: 'varchar', nullable: true })
+  @Exclude()
   verificationToken!: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  @Exclude()
+  verificationTokenExpiresAt!: Date | null;
 
   @CreateDateColumn({ type: 'timestamp', default: () => CURRENT_TIMESTAMP })
   createdAt!: Date;

@@ -16,6 +16,15 @@ import { UserType } from 'src/common/types/enums';
 import { join } from 'node:path';
 import { unlinkSync } from 'node:fs';
 
+/**
+ * What `create()` accepts: the public DTO plus the verification fields that
+ * only AuthService sets. Kept out of `CreateUserDto` so no client can send them.
+ */
+export type CreateUserData = CreateUserDto & {
+  verificationToken?: string | null;
+  verificationTokenExpiresAt?: Date | null;
+};
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -23,8 +32,8 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  create(dto: CreateUserDto) {
-    const user = this.userRepository.create(dto);
+  create(data: CreateUserData) {
+    const user = this.userRepository.create(data);
     return this.userRepository.save(user);
   }
 
@@ -55,6 +64,27 @@ export class UsersService {
   // Returns `null` when no user matches — callers decide what that means.
   findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { email } });
+  }
+
+  /** `hash` is the SHA-256 of the emailed token, never the raw token. */
+  findByVerificationToken(hash: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { verificationToken: hash } });
+  }
+
+  async setVerificationToken(id: number, hash: string, expiresAt: Date) {
+    await this.userRepository.update(id, {
+      verificationToken: hash,
+      verificationTokenExpiresAt: expiresAt,
+    });
+  }
+
+  /** Flips the flag and burns the token, so a link can only be used once. */
+  async markEmailVerified(id: number) {
+    await this.userRepository.update(id, {
+      isAccountVerified: true,
+      verificationToken: null,
+      verificationTokenExpiresAt: null,
+    });
   }
 
   async remove(id: number, payload: JwtPayload) {

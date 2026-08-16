@@ -1,9 +1,11 @@
-import { Injectable, RequestTimeoutException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { User } from '../users/entities/user.entity';
 import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
+
   constructor(private readonly mailerService: MailerService) {}
 
   async sendMail(user: User) {
@@ -12,12 +14,14 @@ export class MailService {
       await this.mailerService.sendMail({
         to: user.email,
         template: 'login-alert',
-        subject: 'login email',
+        subject: 'New sign-in to your account',
         context: { user, today },
       });
     } catch (error) {
-      console.log(error);
-      throw new RequestTimeoutException();
+      // Rethrow the real error. Flattening every failure into one exception is
+      // what made a missing template report itself as a request timeout.
+      this.logger.error('Failed to send login alert', error as Error);
+      throw error;
     }
   }
 
@@ -26,12 +30,14 @@ export class MailService {
       await this.mailerService.sendMail({
         to: user.email,
         template: 'verify-email',
-        subject: 'Token Email verification',
+        subject: 'Confirm your email address',
         context: { link },
       });
     } catch (error) {
-      console.log(error);
-      throw new RequestTimeoutException();
+      this.logger.error('Failed to send verification email', error as Error);
+      throw error;
     }
   }
+
+  async sendResetPassword() {}
 }
