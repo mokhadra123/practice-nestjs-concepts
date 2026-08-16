@@ -18,8 +18,7 @@ export class MailService {
         context: { user, today },
       });
     } catch (error) {
-      // Rethrow the real error. Flattening every failure into one exception is
-      // what made a missing template report itself as a request timeout.
+      // Rethrow the real error. Flattening every failure into one exception is what made a missing template report itself as a request timeout.
       this.logger.error('Failed to send login alert', error as Error);
       throw error;
     }
@@ -39,5 +38,17 @@ export class MailService {
     }
   }
 
-  async sendResetPassword() {}
+  async sendResetPassword(user: User, link: string) {
+    try {
+      await this.mailerService.sendMail({
+        to: user.email,
+        template: 'reset-password',
+        subject: 'Reset Password For Your Email',
+        context: { link },
+      });
+    } catch (error) {
+      this.logger.error('Failed to send verification email', error as Error);
+      throw error;
+    }
+  }
 }

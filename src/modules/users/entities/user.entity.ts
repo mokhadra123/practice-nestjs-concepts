@@ -42,6 +42,18 @@ export class User {
   @Exclude()
   verificationTokenExpiresAt!: Date | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  @Exclude()
+  resetPasswordToken!: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  @Exclude()
+  resetPasswordTokenExpiresAt!: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  @Exclude()
+  passwordChangedAt!: Date | null;
+
   @CreateDateColumn({ type: 'timestamp', default: () => CURRENT_TIMESTAMP })
   createdAt!: Date;
 

@@ -17,12 +17,16 @@ import { MailService } from '../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
 import { User } from '../users/entities/user.entity';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forget-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   private static readonly VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+  private static readonly RESET_TTL_MS = 30 * 60 * 1000;
 
   /**
    * A bcrypt hash of a value nobody knows, generated once at boot. Compared
@@ -45,10 +49,26 @@ export class AuthService {
     const { password, ...rest } = dto;
 
     const existingUser = await this.usersService.findByEmail(dto.email);
-    if (existingUser) throw new BadRequestException('user already exist');
+    if (existingUser?.isAccountVerified) {
+      throw new BadRequestException('user already exist');
+    }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-    const { token, hash, expiresAt } = this._createVerificationToken();
+    const { token, hash, expiresAt } = this._createToken(
+      AuthService.VERIFICATION_TTL_MS,
+    );
+
+    if (existingUser) {
+      await this.usersService.replacePendingRegistration(existingUser.id, {
+        ...rest,
+        password: hashedPassword,
+        verificationToken: hash,
+        verificationTokenExpiresAt: expiresAt,
+      });
+
+      this._sendVerificationEmail(existingUser, token);
+      return { message: 'A verification link has been sent to your email.' };
+    }
 
     const user = await this.usersService.create({
       ...rest,
@@ -78,7 +98,9 @@ export class AuthService {
     // Deliberately AFTER the password check. Before it, an unverified-account
     // error would tell a stranger the address is registered.
     if (!user.isAccountVerified) {
-      const { token, hash, expiresAt } = this._createVerificationToken();
+      const { token, hash, expiresAt } = this._createToken(
+        AuthService.VERIFICATION_TTL_MS,
+      );
       await this.usersService.setVerificationToken(user.id, hash, expiresAt);
       this._sendVerificationEmail(user, token);
 
@@ -127,11 +149,56 @@ export class AuthService {
     return { message: 'Your email has been verified. You can now sign in.' };
   }
 
+  async forgetPassword(dto: ForgotPasswordDto) {
+    const user = await this.usersService.findByEmail(dto.email);
+
+    if (user?.isAccountVerified) {
+      const { token, hash, expiresAt } = this._createToken(
+        AuthService.RESET_TTL_MS,
+      );
+      await this.usersService.setResetToken(user.id, hash, expiresAt);
+      const domain = this.configService.get<string>('DOMAIN');
+
+      void this.mailService
+        .sendResetPassword(user, `${domain}/reset-password?token=${token}`)
+        .catch((err) =>
+          this.logger.error(`Reset email failed for user ${user.id}`, err),
+        );
+    }
+
+    return {
+      message: 'If that address is registered, a reset link has been sent.',
+    };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const user = await this.usersService.findByResetToken(
+      this._hashToken(dto.token),
+    );
+
+    if (
+      !user ||
+      !user.resetPasswordTokenExpiresAt ||
+      user.resetPasswordTokenExpiresAt < new Date()
+    ) {
+      throw new BadRequestException(
+        'This reset link is invalid or has expired.',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
+    await this.usersService.replacePassword(user.id, hashedPassword);
+
+    return { message: 'Your password has been changed. You can now sign in.' };
+  }
+
   async resendVerification(email: string) {
     const user = await this.usersService.findByEmail(email);
 
     if (user && !user.isAccountVerified) {
-      const { token, hash, expiresAt } = this._createVerificationToken();
+      const { token, hash, expiresAt } = this._createToken(
+        AuthService.VERIFICATION_TTL_MS,
+      );
       await this.usersService.setVerificationToken(user.id, hash, expiresAt);
       this._sendVerificationEmail(user, token);
     }
@@ -143,14 +210,36 @@ export class AuthService {
     };
   }
 
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+    const user = await this.usersService.findOne(userId);
+
+    const isCurrentValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.password,
+    );
+
+    if (!isCurrentValid)
+      throw new UnauthorizedException('Current password is incorrect');
+
+    if (dto.currentPassword === dto.newPassword)
+      throw new BadRequestException(
+        'New Password must be different from the current one.',
+      );
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
+    await this.usersService.replacePassword(user.id, hashedPassword);
+
+    return { message: 'Your password has been changed.' };
+  }
+
   /** The raw token goes in the email; only its hash is ever stored. */
-  private _createVerificationToken() {
+  private _createToken(ttlMs: number) {
     const token = randomBytes(32).toString('hex');
 
     return {
       token,
       hash: this._hashToken(token),
-      expiresAt: new Date(Date.now() + AuthService.VERIFICATION_TTL_MS),
+      expiresAt: new Date(Date.now() + ttlMs),
     };
   }
 

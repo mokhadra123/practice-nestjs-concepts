@@ -7,7 +7,10 @@ import {
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { CreateUserDto } from './dto/create-user.dto';
+import {
+  CreateUserData,
+  ReplacePendingRegistrationData,
+} from './types/users.types';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 import { SALT_ROUNDS } from 'src/common/constants';
@@ -15,15 +18,6 @@ import { JwtPayload } from 'src/common/types/jwt-payload';
 import { UserType } from 'src/common/types/enums';
 import { join } from 'node:path';
 import { unlinkSync } from 'node:fs';
-
-/**
- * What `create()` accepts: the public DTO plus the verification fields that
- * only AuthService sets. Kept out of `CreateUserDto` so no client can send them.
- */
-export type CreateUserData = CreateUserDto & {
-  verificationToken?: string | null;
-  verificationTokenExpiresAt?: Date | null;
-};
 
 @Injectable()
 export class UsersService {
@@ -71,10 +65,30 @@ export class UsersService {
     return this.userRepository.findOne({ where: { verificationToken: hash } });
   }
 
+  findByResetToken(hash: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { resetPasswordToken: hash } });
+  }
+
   async setVerificationToken(id: number, hash: string, expiresAt: Date) {
     await this.userRepository.update(id, {
       verificationToken: hash,
       verificationTokenExpiresAt: expiresAt,
+    });
+  }
+
+  async setResetToken(id: number, hash: string, expiresAt: Date) {
+    await this.userRepository.update(id, {
+      resetPasswordToken: hash,
+      resetPasswordTokenExpiresAt: expiresAt,
+    });
+  }
+
+  async replacePassword(id: number, hashedPassword: string) {
+    await this.userRepository.update(id, {
+      password: hashedPassword,
+      resetPasswordToken: null,
+      resetPasswordTokenExpiresAt: null,
+      passwordChangedAt: new Date(),
     });
   }
 
@@ -129,5 +143,12 @@ export class UsersService {
 
     user.profileImage = null;
     return this.userRepository.save(user);
+  }
+
+  async replacePendingRegistration(
+    userId: number,
+    data: ReplacePendingRegistrationData,
+  ) {
+    await this.userRepository.update(userId, data);
   }
 }
